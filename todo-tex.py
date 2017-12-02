@@ -6,9 +6,10 @@ import sys
 import os
 from collections import OrderedDict
 import chardet
+import glob
 
-__version__ = '2.0'
-__author__  = 'Kaiwen Wu'
+__version__ = '2.1'
+__author__ = 'Kaiwen Wu'
 
 
 # any line satisfying this pattern, unless otherwise specified, is recorded
@@ -62,7 +63,13 @@ def make_parser():
             'default to current working directory')
     parser.add_argument('-r', dest='recursive', action='store_true',
             help='recursively search for tex files')
-    parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
+    parser.add_argument('texfiles', metavar='TEXFILE', nargs='*',
+            help='specify certain TeX files to inspect; if there are TeX '
+            'files specified in this way, the recursive option `-r` and the '
+            'base directory option `-d` will be deactivated; within the '
+            'filename, the glob pattern is supported')
+    parser.add_argument('-V', '--version', action='version', 
+            version='%(prog)s ' + __version__)
     return parser
 
 def scan_tex_file(infile, keypattern):
@@ -129,8 +136,17 @@ def show_result(texfile_annotations, print_linenumber, print_done, print_label, 
 
 def main():
     args = make_parser().parse_args(sys.argv[1:])
-    show_result(scan_directory(args.basedir, KEYPATTERN, args.recursive),
-                args.print_linenumber, args.print_done, args.print_label, args.print_message)
-
+    if len(args.texfiles) == 0:
+        show_result(scan_directory(args.basedir, KEYPATTERN, args.recursive),
+                    args.print_linenumber, args.print_done, args.print_label, 
+                    args.print_message)
+    else:
+        texfilenames = []
+        for globtexfile in args.texfiles:
+            texfilenames.extend(glob.glob(globtexfile))
+        show_result(scan_bunch_of_texfiles(os.curdir, texfilenames, 
+                                           KEYPATTERN), 
+                    args.print_linenumber, args.print_done, args.print_label, 
+                    args.print_message)
 if __name__ == '__main__':
     main()
