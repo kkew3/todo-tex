@@ -32,6 +32,8 @@ latter dictionary are the DONE tags in LaTeX source to parse, the values
 the same as previously stated.
 
 Scenario to use DONE tags includes notes to previously posed `question` tag.
+Option `-D` can be used to suppress showing DONE tags.
+For example: `todo-tex -Dlm`.
 
 ## Dependencies
 
