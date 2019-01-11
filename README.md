@@ -35,11 +35,6 @@ Scenario to use DONE tags includes notes to previously posed `question` tag.
 Option `-D` can be used to suppress showing DONE tags.
 For example: `todo-tex -Dlm`.
 
-## Dependencies
+## Optional dependencies
 
-`chardet`, used to safely open text files with unknown encodings.
-
-```
-pip3 install chardet
-```
-
+- `chardet`, used to safely open text files with unknown encodings.
