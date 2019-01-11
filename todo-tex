@@ -5,8 +5,12 @@ import re
 import sys
 import os
 from collections import OrderedDict
-import chardet
-import glob
+try:
+    import chardet
+except ImportError:
+    chardet = None
+if sys.platform == 'win32':
+    import glob
 
 __version__ = '2.1'
 __author__ = 'Kaiwen Wu'
@@ -64,11 +68,13 @@ def make_parser():
     parser.add_argument('-r', dest='recursive', action='store_true',
             help='recursively search for tex files')
     parser.add_argument('texfiles', metavar='TEXFILE', nargs='*',
-            help='specify certain TeX files to inspect; if there are TeX '
+            help='specify certain TeX files to inspect. If there are TeX '
             'files specified in this way, the recursive option `-r` and the '
-            'base directory option `-d` will be deactivated; within the '
-            'filename, the glob pattern is supported')
-    parser.add_argument('-V', '--version', action='version', 
+            'base directory option `-d` will be deactivated. On Windows, '
+            'python-style globbing is supported within the filename; '
+            'otherwise see the filename expansion rule of the underlying '
+            'shell')
+    parser.add_argument('-V', '--version', action='version',
             version='%(prog)s ' + __version__)
     return parser
 
@@ -93,8 +99,10 @@ def scan_bunch_of_texfiles(basedir, texfilenames, keypattern):
     texfile_linenumbers = OrderedDict()
     for x in texfilenames:
         texfilepath = os.path.join(basedir, x)
-        with open(texfilepath, 'rb') as infile:
-            ec = chardet.detect(infile.read())['encoding']
+        ec = None
+        if chardet:
+            with open(texfilepath, 'rb') as infile:
+                ec = chardet.detect(infile.read())['encoding']
         with open(texfilepath, encoding=ec) as infile:
             annotations = scan_tex_file(infile, keypattern)
         if len(annotations) > 0:
@@ -106,7 +114,7 @@ def scan_directory(dirpath, keypattern, recursive):
     :param dirpath: the path of directory to scan
     :param keypattern: the keypattern to use
     :param recursive: True to scan dirpath recursively
-    :return: an OrderedDict object with key the tex file path and value the 
+    :return: an OrderedDict object with key the tex file path and value the
              annotations
     """
     if not os.path.isdir(dirpath):
@@ -129,24 +137,39 @@ def show_result(texfile_annotations, print_linenumber, print_done, print_label, 
         if print_linenumber:
             for linenumber, keyword, message in texfile_annotations[texfilepath]:
                 if not (keyword in KEYWORDS_done and not print_done):
-                    print('    %sline %d%s' % (
-                            ('[' + (KEYWORDS_todo[keyword] if keyword in KEYWORDS_todo else KEYWORDS_done[keyword]) + '] ') if print_label else '',
-                            linenumber,
-                            (': ' + message) if print_message and message != '' else ''))
+                    if print_label:
+                        if keyword in KEYWORDS_todo:
+                            label = KEYWORDS_todo[keyword]
+                        else:
+                            label = KEYWORDS_done[keyword]
+                        if print_message and message:
+                            print('    [{}] line {}: {}'
+                                  .format(label, linenumber, message))
+                        else:
+                            print('    [{}] line {}'.format(label, linenumber))
+                    else:
+                        if print_message and message:
+                            print('    line {}: {}'.format(linenumber, message))
+                        else:
+                            print('    line {}'.format(linenumber))
 
 def main():
     args = make_parser().parse_args(sys.argv[1:])
     if len(args.texfiles) == 0:
         show_result(scan_directory(args.basedir, KEYPATTERN, args.recursive),
-                    args.print_linenumber, args.print_done, args.print_label, 
+                    args.print_linenumber, args.print_done, args.print_label,
                     args.print_message)
     else:
-        texfilenames = []
-        for globtexfile in args.texfiles:
-            texfilenames.extend(glob.glob(globtexfile))
-        show_result(scan_bunch_of_texfiles(os.curdir, texfilenames, 
-                                           KEYPATTERN), 
-                    args.print_linenumber, args.print_done, args.print_label, 
+        if sys.platform == 'win32':
+            texfilenames = []
+            for globtexfile in args.texfiles:
+                texfilenames.extend(glob.glob(globtexfile))
+        else:
+            # the glob pattern should already be expanded by shell
+            texfilenames = args.texfiles
+        show_result(scan_bunch_of_texfiles(os.curdir, texfilenames,
+                                           KEYPATTERN),
+                    args.print_linenumber, args.print_done, args.print_label,
                     args.print_message)
 if __name__ == '__main__':
     main()
