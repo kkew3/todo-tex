@@ -171,5 +171,12 @@ def main():
                                            KEYPATTERN),
                     args.print_linenumber, args.print_done, args.print_label,
                     args.print_message)
+
+
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+    except BrokenPipeError:
+        sys.stderr.close()
