@@ -17,7 +17,6 @@ __author__ = 'Kaiwen Wu'
 
 
 # any line satisfying this pattern, unless otherwise specified, is recorded
-# KEYPATTERN = r'([^\\]|^)%[ \t]*(todo|TODO|question|problem|continue here|continue later|continue ?\.{3,})'
 KEYWORDS_todo = {  # keyword : label
     'todo'              : 'TODO',
     'TODO'              : 'TODO',
@@ -25,17 +24,18 @@ KEYWORDS_todo = {  # keyword : label
     'problem'           : 'PROBLEM',
     'continue here'     : 'TODO',
     'continue later'    : 'TODO',
-    r'continue ?\.{3,}' : 'TODO'
+    r'continue ?\.{3,}' : 'TODO',
 }
 
 KEYWORDS_done = {  # keyword : label
-    r'question solved'  : 'SOLVED',
-    r'problem solved'   : 'SOLVED'
+    'question solved'  : 'SOLVED',
+    'problem solved'   : 'SOLVED',
+    'done'             : 'SOLVED',
 }
 
-KEYPATTERN = r'([^\\]|^)%[ \t]*('\
-        + '|'.join(list(KEYWORDS_done) + list(KEYWORDS_todo))\
-        + r')[ \t]*:?[ \t]*(.*)$'  # KEYPATTERN v2.0
+KEYPATTERN = (r'([^\\]|^)%[ \t]*('
+              + '|'.join(list(KEYWORDS_done) + list(KEYWORDS_todo))
+              + r')[ \t]*:?[ \t]*(.*)$')
 
 def test_keypattern():
     """
@@ -44,7 +44,6 @@ def test_keypattern():
     >>> _, kw, msg = re.findall(KEYPATTERN, 'blablabla % question solved: explanation')[0]
     >>> assert kw in KEYWORDS_done and msg == 'explanation'
     """
-    pass
 
 
 #################
@@ -84,15 +83,12 @@ def scan_tex_file(infile, keypattern):
     :param keypattern: the keypattern to use
     :return: the tuples (line number, keyword, message)
     """
-    content = list(infile)
     annotations = []
-    for lid, line in enumerate(content):
+    for lid, line in enumerate(infile):
         line = line.rstrip()
-        annot = re.findall(keypattern, line)
-        if len(annot) > 0:
-            assert len(annot) == 1
-            annot = annot[0]
-            annotations.append((lid + 1, annot[1], annot[2]))
+        matched = re.search(keypattern, line)
+        if matched:
+            annotations.append((lid + 1, matched.group(2), matched.group(3)))
     return annotations
 
 def scan_bunch_of_texfiles(basedir, texfilenames, keypattern):
@@ -120,17 +116,19 @@ def scan_directory(dirpath, keypattern, recursive):
     if not os.path.isdir(dirpath):
         raise ValueError('dirpath "' + str(dirpath) + '" not found')
     texfile_annotations = OrderedDict()
-    for root, dirs, files in os.walk(dirpath):
+    for root, _, files in os.walk(dirpath):
         texfiles = [x for x in files if x.endswith('.tex')]
         texfile_annotations.update(scan_bunch_of_texfiles(
-                root, texfiles, keypattern))
+            root, texfiles, keypattern))
         if not recursive:
             break
     return texfile_annotations
 
 def show_result(texfile_annotations, print_linenumber, print_done, print_label, print_message):
     for texfilepath in texfile_annotations:
-        todo_count = len([(l,k,m) for l,k,m in texfile_annotations[texfilepath] if k in KEYWORDS_todo])
+        todo_count = len([(l, k, m)
+                          for l, k, m in texfile_annotations[texfilepath]
+                          if k in KEYWORDS_todo])
         if todo_count == 0 and not print_done:
             continue
         print(texfilepath)
@@ -138,10 +136,7 @@ def show_result(texfile_annotations, print_linenumber, print_done, print_label, 
             for linenumber, keyword, message in texfile_annotations[texfilepath]:
                 if not (keyword in KEYWORDS_done and not print_done):
                     if print_label:
-                        if keyword in KEYWORDS_todo:
-                            label = KEYWORDS_todo[keyword]
-                        else:
-                            label = KEYWORDS_done[keyword]
+                        label = KEYWORDS_todo.get(keyword, KEYWORDS_done[keyword])
                         if print_message and message:
                             print('    [{}] line {}: {}'
                                   .format(label, linenumber, message))
