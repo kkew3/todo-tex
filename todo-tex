@@ -38,12 +38,12 @@ KEYPATTERN = (r'([^\\]|^)%[ \t]*('
               + r')[ \t]*:?[ \t]*(.*)$')
 
 def test_keypattern():
-    """
-    >>> _, kw, msg = re.findall(KEYPATTERN, 'blablabla % continue ...')[0]
-    >>> assert kw == 'continue ...' and msg == ''
-    >>> _, kw, msg = re.findall(KEYPATTERN, 'blablabla % question solved: explanation')[0]
-    >>> assert kw in KEYWORDS_done and msg == 'explanation'
-    """
+    matched = re.search(KEYPATTERN, 'blablabla % continue ...')
+    assert matched.group(2) == 'continue ...'
+    assert matched.group(3) == ''
+    matched = re.search(KEYPATTERN, 'blablabla % question solved: explanation')
+    assert matched.group(2) == 'question solved'
+    assert matched.group(3) == 'explanation'
 
 
 #################
