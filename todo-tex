@@ -136,7 +136,10 @@ def show_result(texfile_annotations, print_linenumber, print_done, print_label, 
             for linenumber, keyword, message in texfile_annotations[texfilepath]:
                 if not (keyword in KEYWORDS_done and not print_done):
                     if print_label:
-                        label = KEYWORDS_todo.get(keyword, KEYWORDS_done[keyword])
+                        try:
+                            label = KEYWORDS_todo[keyword]
+                        except KeyError:
+                            label = KEYWORDS_done[keyword]
                         if print_message and message:
                             print('    [{}] line {}: {}'
                                   .format(label, linenumber, message))
