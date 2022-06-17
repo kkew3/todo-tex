@@ -4,15 +4,21 @@ import argparse
 import re
 import sys
 import os
-from collections import OrderedDict
+import collections
 try:
     import chardet
 except ImportError:
     chardet = None
 if sys.platform == 'win32':
     import glob
+try:
+    import colorama
+except ImportError:
+    colorama = None
+else:
+    colorama.init()
 
-__version__ = '2.1'
+__version__ = '3.0'
 __author__ = 'Kaiwen Wu'
 
 # any line satisfying this pattern, unless otherwise specified, is recorded
@@ -32,21 +38,36 @@ KEYWORDS_done = {  # keyword : label
     'done'             : 'SOLVED',
 }
 
-KEYPATTERN = (r'([^\\]|^)%[ \t]*('
+#################
+
+KEYPATTERN = (r'([^\\]|^)%(?P<pfx_space>[ \t]*)(?P<key>'
               + '|'.join(list(KEYWORDS_done) + list(KEYWORDS_todo))
-              + r')[ \t]*:?[ \t]*(.*)$')
+              + r')[ \t]*:?[ \t]*(?P<msg>\S.*)?$')
+CONTPATTERN = r'^[ \t]*%(?P<pfx_space>[ \t]*)(?P<msg>\S.*)?$'
+# Reference: https://blog.csdn.net/cysear/article/details/80435756
+# Reference: https://github.com/hotoo/pangu.vim/blob/master/plugin/pangu.vim
+HANS = (r'[\u4e00-\u9fa5\u3040-\u30ff\u3002\uff1f\uff01\uff0c\u3001\uff1b'
+        r'\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u300a\u300b\u3008\u3009'
+        r'\u3010\u3011\u300e\u300f\u300c\u300d\ufe43\ufe44\u3014\u3015\u2026'
+        r'\u2014\uff5e\ufe4f\uffe5]')
+
+COLOR_PURPLE = '\33[0;35m'
+COLOR_GREEN = '\33[0;32m'
+COLOR_BRED = '\33[1;31m'
+COLOR_RST = '\33[0m'
 
 
 def test_keypattern():
     matched = re.search(KEYPATTERN, 'blablabla % continue ...')
-    assert matched.group(2) == 'continue ...'
-    assert matched.group(3) == ''
+    assert matched.group('key') == 'continue ...'
+    assert not matched.group('msg')
     matched = re.search(KEYPATTERN, 'blablabla % question solved: explanation')
-    assert matched.group(2) == 'question solved'
-    assert matched.group(3) == 'explanation'
+    assert matched.group('key') == 'question solved'
+    assert matched.group('msg') == 'explanation'
 
 
-#################
+TexAnnotation = collections.namedtuple('TexAnnotation',
+                                       ['ln', 'pfxlen', 'key', 'msg'])
 
 
 def make_parser():
@@ -67,34 +88,53 @@ def make_parser():
         action='store_false',
         help='suppress printing entries of `done\' keyword')
     parser.add_argument(
-        '-l',
+        '-A',
         dest='print_label',
-        action='store_true',
-        help='print the label of the entry keywords')
+        action='store_false',
+        help='suppress printing the label of the entry keywords')
     parser.add_argument(
-        '-m',
+        '-M',
         dest='print_message',
-        action='store_true',
-        help='print the messages')
+        action='store_false',
+        help='suppress printing messages')
     parser.add_argument(
         '-d',
         dest='basedir',
         metavar='PATH',
         default='.',
-        help=('the directory under witch tex files are to be scaned, '
-              'default to current working directory'))
+        help=('the directory under which tex files are to be scanned. '
+              'Default to current working directory'))
     parser.add_argument(
         '-r',
         dest='recursive',
         action='store_true',
         help='recursively search for tex files')
     parser.add_argument(
+        '-c',
+        dest='allow_continuation',
+        action='store_true',
+        help=('allow continuation of todo/done message on next lines by '
+              'prefixing message with extra spaces'))
+    parser.add_argument(
+        '--heading',
+        choices=['never', 'auto', 'always'],
+        default='auto',
+        help=('choose `always\' to always group the output and put filename '
+              'in heading; choose `never\' to always put filename as a '
+              'prefix; otherwise, make filename a prefix if not atty else as '
+              'heading. Default to `%(default)s\''))
+    parser.add_argument(
+        '--color',
+        choices=['never', 'auto', 'always'],
+        default='auto',
+        help='when to show color. Default to `%(default)s\'')
+    parser.add_argument(
         'texfiles',
         metavar='TEXFILE',
         nargs='*',
         help=('specify certain TeX files to inspect. If there are TeX '
-              'files specified in this way, the recursive option `-r` and the '
-              'base directory option `-d` will be deactivated. On Windows, '
+              'files specified in this way, the recursive option `-r\' and the'
+              ' base directory option `-d\' will be deactivated. On Windows, '
               'python-style globbing is supported within the filename; '
               'otherwise see the filename expansion rule of the underlying '
               'shell'))
@@ -103,23 +143,126 @@ def make_parser():
     return parser
 
 
-def scan_tex_file(infile, keypattern):
+def scan_tex_file(lines_iter, allow_continuation):
     """
-    :param infile: the file object with mode 'r'
-    :param keypattern: the keypattern to use
-    :return: the tuples (line number, keyword, message)
+    :param lines_iter: an iterator of lines
+    :param allow_continuation: whether to allow message continuation
+    :return: the annotations
+    :rtype: List[TexAnnotation]
     """
     annotations = []
-    for lid, line in enumerate(infile):
-        line = line.rstrip()
-        matched = re.search(keypattern, line)
-        if matched:
-            annotations.append((lid + 1, matched.group(2), matched.group(3)))
+    if not allow_continuation:
+        for ln, line in enumerate(lines_iter, 1):
+            line = line.rstrip('\n')
+            matched = re.search(KEYPATTERN, line)
+            if matched:
+                annotations.append(
+                    TexAnnotation(ln, len(matched.group('pfx_space')),
+                                  matched.group('key'), matched.group('msg')))
+    else:
+        continuing = False
+        for ln, line in enumerate(lines_iter, 1):
+            line = line.rstrip('\n')
+            if continuing:
+                try:
+                    prev_annot = annotations.pop()
+                except IndexError:
+                    continuing = False
+                else:
+                    matched = re.match(CONTPATTERN, line)
+                    if (matched and len(matched.group('pfx_space')) >
+                            prev_annot.pfxlen):
+                        # handle Chinese
+                        if (prev_annot.msg
+                                and re.match(HANS, prev_annot.msg[-1])
+                                and matched.group('msg')
+                                and re.match(HANS,
+                                             matched.group('msg')[-1])):
+                            msgsep = ''
+                        else:
+                            msgsep = ' '
+                        annotations.append(
+                            TexAnnotation(
+                                prev_annot.ln, prev_annot.pfxlen,
+                                prev_annot.key,
+                                msgsep.join(
+                                    [prev_annot.msg,
+                                     matched.group('msg')])))
+                    else:
+                        annotations.append(prev_annot)
+                        continuing = False
+            if not continuing:
+                matched = re.search(KEYPATTERN, line)
+                if matched:
+                    annotations.append(
+                        TexAnnotation(ln, len(matched.group('pfx_space')),
+                                      matched.group('key'),
+                                      matched.group('msg')))
+                    continuing = True
     return annotations
 
 
-def scan_bunch_of_texfiles(basedir, texfilenames, keypattern):
-    texfile_linenumbers = OrderedDict()
+def test_scan_tex_file():
+    lines = [
+        'test test test % todo message message\n',
+        '      %      message2 message2 message2\n'
+    ]
+    annots = scan_tex_file(iter(lines), False)
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].pfxlen == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == 'message message'
+    annots = scan_tex_file(iter(lines), True)
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].pfxlen == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == 'message message message2 message2 message2'
+
+    lines = [
+        'test test test % todo message message\n',
+        '      % question     message2 message2 message2\n'
+    ]
+    annots = scan_tex_file(iter(lines), False)
+    assert len(annots) == 2
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == 'message message'
+    assert annots[1].ln == 2
+    assert annots[1].key == 'question'
+    assert annots[1].msg == 'message2 message2 message2'
+    annots = scan_tex_file(iter(lines), True)
+    assert len(annots) == 2
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == 'message message'
+    assert annots[1].ln == 2
+    assert annots[1].key == 'question'
+    assert annots[1].msg == 'message2 message2 message2'
+
+    lines = [
+        'test test test % todo message message\n',
+        '      %   question   message2 message2 message2\n'
+    ]
+    annots = scan_tex_file(iter(lines), False)
+    assert len(annots) == 2
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == 'message message'
+    assert annots[1].ln == 2
+    assert annots[1].key == 'question'
+    assert annots[1].msg == 'message2 message2 message2'
+    annots = scan_tex_file(iter(lines), True)
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == ('message message question   '
+                             'message2 message2 message2')
+
+
+def scan_bunch_of_texfiles(basedir, texfilenames, allow_continuation):
+    per_file_annotations = collections.OrderedDict()
     for x in texfilenames:
         texfilepath = os.path.join(basedir, x)
         ec = None
@@ -127,70 +270,134 @@ def scan_bunch_of_texfiles(basedir, texfilenames, keypattern):
             with open(texfilepath, 'rb') as infile:
                 ec = chardet.detect(infile.read())['encoding']
         with open(texfilepath, encoding=ec) as infile:
-            annotations = scan_tex_file(infile, keypattern)
+            annotations = scan_tex_file(infile, allow_continuation)
         if len(annotations) > 0:
-            texfile_linenumbers[texfilepath] = annotations
-    return texfile_linenumbers
+            per_file_annotations[texfilepath] = annotations
+    return per_file_annotations
 
 
-def scan_directory(dirpath, keypattern, recursive):
+def scan_directory(basedir, allow_continuation, recursive):
     """
-    :param dirpath: the path of directory to scan
-    :param keypattern: the keypattern to use
+    :param basedir: the path of directory to scan
+    :param allow_continuation: whether to allow message continuation
     :param recursive: True to scan dirpath recursively
     :return: an OrderedDict object with key the tex file path and value the
              annotations
     """
-    if not os.path.isdir(dirpath):
-        raise ValueError('dirpath "' + str(dirpath) + '" not found')
-    texfile_annotations = OrderedDict()
-    for root, _, files in os.walk(dirpath):
+    if not os.path.isdir(basedir):
+        raise ValueError('basedir "{}" not found'.format(basedir))
+    per_file_annotations = collections.OrderedDict()
+    for root, _, files in os.walk(basedir):
         texfiles = [x for x in files if x.endswith('.tex')]
-        texfile_annotations.update(
-            scan_bunch_of_texfiles(root, texfiles, keypattern))
+        per_file_annotations.update(
+            scan_bunch_of_texfiles(root, texfiles, allow_continuation))
         if not recursive:
             break
-    return texfile_annotations
+    return per_file_annotations
 
 
-def show_result(texfile_annotations, print_linenumber, print_done, print_label,
-                print_message):
-    for texfilepath in texfile_annotations:
-        todo_count = len([(l, k, m)
-                          for l, k, m in texfile_annotations[texfilepath]
-                          if k in KEYWORDS_todo])
-        if todo_count == 0 and not print_done:
+def populate_result_line(sbuf, annot, print_linenumber, print_label,
+                         print_message, color):
+    if print_linenumber:
+        if sbuf:
+            sbuf.append(':')
+        if color:
+            sbuf.extend([COLOR_GREEN, str(annot.ln), COLOR_RST])
+        else:
+            sbuf.append(str(annot.ln))
+    if print_label:
+        if sbuf:
+            sbuf.append(':')
+        try:
+            label = KEYWORDS_todo[annot.key]
+        except KeyError:
+            label = KEYWORDS_done[annot.key]
+        if color:
+            sbuf.extend([COLOR_BRED, label, COLOR_RST])
+        else:
+            sbuf.append(label)
+    if print_message and annot.msg:
+        if sbuf:
+            sbuf.append(':')
+        sbuf.append(annot.msg)
+
+
+def show_result_heading(per_file_annotations, print_linenumber, print_done,
+                        print_label, print_message, color):
+    first_entry = True
+    for texfilepath, annotations in per_file_annotations.items():
+        annotations_to_show = [
+            a for a in annotations if a.key in KEYWORDS_todo or (
+                a.key in KEYWORDS_done and print_done)
+        ]
+        if not annotations_to_show:
             continue
-        print(texfilepath)
-        if print_linenumber:
-            for linenumber, keyword, message in texfile_annotations[
-                    texfilepath]:
-                if not (keyword in KEYWORDS_done and not print_done):
-                    if print_label:
-                        try:
-                            label = KEYWORDS_todo[keyword]
-                        except KeyError:
-                            label = KEYWORDS_done[keyword]
-                        if print_message and message:
-                            print('    [{}] line {}: {}'.format(
-                                label, linenumber, message))
-                        else:
-                            print('    [{}] line {}'.format(label, linenumber))
-                    else:
-                        if print_message and message:
-                            print('    line {}: {}'.format(
-                                linenumber, message))
-                        else:
-                            print('    line {}'.format(linenumber))
+        if not first_entry:
+            print()
+        if color:
+            print(COLOR_PURPLE + texfilepath + COLOR_RST)
+        else:
+            print(texfilepath)
+        if print_linenumber or print_label or print_message:
+            for a in annotations_to_show:
+                sbuf = []
+                populate_result_line(sbuf, a, print_linenumber, print_label,
+                                     print_message, color)
+                print(''.join(sbuf))
+            first_entry = False
+
+
+def show_result_no_heading(per_file_annotations, print_linenumber, print_done,
+                           print_label, print_message, color):
+    for texfilepath, annotations in per_file_annotations.items():
+        annotations_to_show = [
+            a for a in annotations if a.key in KEYWORDS_todo or (
+                a.key in KEYWORDS_done and print_done)
+        ]
+        for a in annotations_to_show:
+            sbuf = []
+            if color:
+                sbuf.extend([COLOR_PURPLE, texfilepath, COLOR_RST])
+            else:
+                sbuf.append(texfilepath)
+            populate_result_line(sbuf, a, print_linenumber, print_label,
+                                 print_message, color)
+            print(''.join(sbuf))
+
+
+def show_result(per_file_annotations, print_linenumber, print_done,
+                print_label, print_message, heading, color):
+    if heading:
+        show_result_heading(per_file_annotations, print_linenumber, print_done,
+                            print_label, print_message, color)
+    else:
+        show_result_no_heading(per_file_annotations, print_linenumber,
+                               print_done, print_label, print_message, color)
+
+
+def resolve_color(color):
+    if color == 'always':
+        return True
+    if color == 'never':
+        return False
+    return sys.stdout.isatty()
+
+
+def resolve_heading(heading):
+    if heading == 'always':
+        return True
+    if heading == 'never':
+        return False
+    return sys.stdout.isatty()
 
 
 def main():
     args = make_parser().parse_args(sys.argv[1:])
-    if len(args.texfiles) == 0:
-        show_result(
-            scan_directory(args.basedir, KEYPATTERN,
-                           args.recursive), args.print_linenumber,
-            args.print_done, args.print_label, args.print_message)
+    color = resolve_color(args.color)
+    heading = resolve_heading(args.heading)
+    if not args.texfiles:
+        pfa = scan_directory(args.basedir, args.allow_continuation,
+                             args.recursive)
     else:
         if sys.platform == 'win32':
             texfilenames = []
@@ -199,10 +406,10 @@ def main():
         else:
             # the glob pattern should already be expanded by shell
             texfilenames = args.texfiles
-        show_result(
-            scan_bunch_of_texfiles(os.curdir, texfilenames,
-                                   KEYPATTERN), args.print_linenumber,
-            args.print_done, args.print_label, args.print_message)
+        pfa = scan_bunch_of_texfiles(os.curdir, texfilenames,
+                                     args.allow_continuation)
+    show_result(pfa, args.print_linenumber, args.print_done, args.print_label,
+                args.print_message, heading, color)
 
 
 if __name__ == '__main__':

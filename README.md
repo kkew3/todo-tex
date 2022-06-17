@@ -1,4 +1,4 @@
-# todo-tex -- Add TODO tag to LaTeX file
+# todo-tex.py -- Add TODO tag to LaTeX file
 
 This Python3 utility parses LaTeX source codes for TODO tags and print them 
 up on terminal. Supported TODO tags are `todo`, `TODO`, `question`, 
@@ -6,21 +6,30 @@ up on terminal. Supported TODO tags are `todo`, `TODO`, `question`,
 
 ## Sample Usage
 
-myfile.tex:
+`sample.tex`:
 
-	\documentclass{article}
-	\begin{document}
-	Superchiasmatic neucleus is the primary clock % continue later: forgot what to write now
-	\end{document}
+```
+\documentclass{article}
+\begin{document}
+% todo some text
+Superchiasmatic neucleus is the primary clock % continue later: forgot
+                                              %   what to write now
+\end{document}
+```
 
-With command `todo-tex -lm` under directory of `myfile.tex`, the output is
+With command `todo-tex.py -c` under directory of `sample.tex`, the output is
 
-	./myfile.tex
-	    [TODO] line 3: forgot what to write now
+```
+./sample.tex
+3:TODO:some text
+4:TODO:forgot what to write now
+```
+
+(with color)
 
 ## Detailed Help
 
-See `todo-tex --help`.
+See `todo-tex.py --help`.
 
 ## How to add/remove supported TODO tags
 
@@ -33,8 +42,14 @@ the same as previously stated.
 
 Scenario to use DONE tags includes notes to previously posed `question` tag.
 Option `-D` can be used to suppress showing DONE tags.
-For example: `todo-tex -Dlm`.
 
 ## Optional dependencies
 
 - `chardet`, used to safely open text files with unknown encodings.
+- `colorama`, used to color the output under Windows.
+
+## Dev dependencies
+
+To run the tests in `todo-tex.py`, you'll need
+
+- `pytest`
