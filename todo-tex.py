@@ -177,7 +177,7 @@ def scan_tex_file(lines_iter, allow_continuation):
                                 and re.match(HANS, prev_annot.msg[-1])
                                 and matched.group('msg')
                                 and re.match(HANS,
-                                             matched.group('msg')[-1])):
+                                             matched.group('msg')[0])):
                             msgsep = ''
                         else:
                             msgsep = ' '
