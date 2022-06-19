@@ -172,8 +172,10 @@ def scan_tex_file(lines_iter, allow_continuation):
                     matched = re.match(CONTPATTERN, line)
                     if (matched and len(matched.group('pfx_space')) >
                             prev_annot.pfxlen):
+                        if not prev_annot.msg or not matched.group('msg'):
+                            msgsep = ''
                         # handle Chinese
-                        if (prev_annot.msg
+                        elif (prev_annot.msg
                                 and re.match(HANS, prev_annot.msg[-1])
                                 and matched.group('msg')
                                 and re.match(HANS,
@@ -186,8 +188,8 @@ def scan_tex_file(lines_iter, allow_continuation):
                                 prev_annot.ln, prev_annot.pfxlen,
                                 prev_annot.key,
                                 msgsep.join(
-                                    [prev_annot.msg,
-                                     matched.group('msg')])))
+                                    [prev_annot.msg or '',
+                                     matched.group('msg') or ''])))
                     else:
                         annotations.append(prev_annot)
                         continuing = False
