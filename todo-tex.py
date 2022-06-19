@@ -260,6 +260,62 @@ def test_scan_tex_file():
     assert annots[0].msg == ('message message question   '
                              'message2 message2 message2')
 
+    lines = [
+        'test test test % todo\n',
+        '     %   message2 message2\n',
+    ]
+    annots = scan_tex_file(iter(lines), True)
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == 'message2 message2'
+
+    lines = [
+        'test test test % todo\n',
+        '  %        \n',
+    ]
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert not annots[0].msg
+
+    lines = [
+        'test test test % todo message1\n',
+        '  %         \n',
+    ]
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == 'message1'
+
+    lines = [
+        'test test test % todo 测试！\n',
+        '  %   222 333 444\n',
+    ]
+    annots = scan_tex_file(iter(lines), True)
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == '测试！222 333 444'
+
+    lines = [
+        'test test test % todo 测试\n',
+        '  %   222 333 444\n',
+    ]
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == '测试 222 333 444'
+
+    lines = [
+        'test test test % todo 测试\n',
+        '  %    再次测试\n',
+    ]
+    assert len(annots) == 1
+    assert annots[0].ln == 1
+    assert annots[0].key == 'todo'
+    assert annots[0].msg == '测试再次测试'
+
 
 def scan_bunch_of_texfiles(basedir, texfilenames, allow_continuation):
     per_file_annotations = collections.OrderedDict()
