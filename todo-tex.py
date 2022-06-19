@@ -276,6 +276,7 @@ def test_scan_tex_file():
         'test test test % todo\n',
         '  %        \n',
     ]
+    annots = scan_tex_file(iter(lines), True)
     assert len(annots) == 1
     assert annots[0].ln == 1
     assert annots[0].key == 'todo'
@@ -285,6 +286,7 @@ def test_scan_tex_file():
         'test test test % todo message1\n',
         '  %         \n',
     ]
+    annots = scan_tex_file(iter(lines), True)
     assert len(annots) == 1
     assert annots[0].ln == 1
     assert annots[0].key == 'todo'
@@ -304,6 +306,7 @@ def test_scan_tex_file():
         'test test test % todo 测试\n',
         '  %   222 333 444\n',
     ]
+    annots = scan_tex_file(iter(lines), True)
     assert len(annots) == 1
     assert annots[0].ln == 1
     assert annots[0].key == 'todo'
@@ -313,6 +316,7 @@ def test_scan_tex_file():
         'test test test % todo 测试\n',
         '  %    再次测试\n',
     ]
+    annots = scan_tex_file(iter(lines), True)
     assert len(annots) == 1
     assert annots[0].ln == 1
     assert annots[0].key == 'todo'
