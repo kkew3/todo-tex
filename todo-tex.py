@@ -46,10 +46,12 @@ KEYPATTERN = (r'([^\\]|^)%(?P<pfx_space>[ \t]*)(?P<key>'
 CONTPATTERN = r'^[ \t]*%(?P<pfx_space>[ \t]*)(?P<msg>\S.*)?$'
 # Reference: https://blog.csdn.net/cysear/article/details/80435756
 # Reference: https://github.com/hotoo/pangu.vim/blob/master/plugin/pangu.vim
-HANS = (r'[\u4e00-\u9fa5\u3040-\u30ff\u3002\uff1f\uff01\uff0c\u3001\uff1b'
-        r'\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u300a\u300b\u3008\u3009'
-        r'\u3010\u3011\u300e\u300f\u300c\u300d\ufe43\ufe44\u3014\u3015\u2026'
-        r'\u2014\uff5e\ufe4f\uffe5]')
+HANS = (r'[\u4e00-\u9fa5\u3040-\u30ff]')
+HANS_PUNC = (
+    r'[\u3002\uff1f\uff01\uff0c\u3001\uff1b'
+    r'\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u300a\u300b\u3008\u3009'
+    r'\u3010\u3011\u300e\u300f\u300c\u300d\ufe43\ufe44\u3014\u3015\u2026'
+    r'\u2014\uff5e\ufe4f\uffe5]')
 
 COLOR_PURPLE = '\33[0;35m'
 COLOR_GREEN = '\33[0;32m'
@@ -174,12 +176,13 @@ def scan_tex_file(lines_iter, allow_continuation):
                             prev_annot.pfxlen):
                         if not prev_annot.msg or not matched.group('msg'):
                             msgsep = ''
-                        # handle Chinese
-                        elif (prev_annot.msg
-                                and re.match(HANS, prev_annot.msg[-1])
-                                and matched.group('msg')
-                                and re.match(HANS,
-                                             matched.group('msg')[0])):
+                        # handle Chinese and Chinese punctuation
+                        elif ((re.match(HANS, prev_annot.msg[-1])
+                               and re.match(HANS,
+                                            matched.group('msg')[0]))
+                              or (re.match(HANS_PUNC, prev_annot.msg[-1])
+                                  or re.match(HANS_PUNC,
+                                              matched.group('msg')[0]))):
                             msgsep = ''
                         else:
                             msgsep = ' '
