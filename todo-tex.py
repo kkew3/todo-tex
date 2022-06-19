@@ -190,9 +190,10 @@ def scan_tex_file(lines_iter, allow_continuation):
                             TexAnnotation(
                                 prev_annot.ln, prev_annot.pfxlen,
                                 prev_annot.key,
-                                msgsep.join(
-                                    [prev_annot.msg or '',
-                                     matched.group('msg') or ''])))
+                                msgsep.join([
+                                    prev_annot.msg or '',
+                                    matched.group('msg') or ''
+                                ])))
                     else:
                         annotations.append(prev_annot)
                         continuing = False
