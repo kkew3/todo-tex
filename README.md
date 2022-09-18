@@ -1,8 +1,8 @@
 # todo-tex.py -- Add TODO tag to LaTeX file
 
 This Python3 utility parses LaTeX source codes for TODO tags and print them 
-up on terminal. Supported TODO tags are `todo`, `TODO`, `question`, 
-`problem`, `continue here`, `continue later`, `continue ...`.
+up on terminal. Supported TODO tags are `todo`, `TODO`, `fixme`, `FIXME`,
+`question`, `problem`, `continue here`, `continue later`, `continue ...`.
 
 ## Sample Usage
 
