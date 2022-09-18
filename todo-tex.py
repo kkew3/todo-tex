@@ -25,6 +25,8 @@ __author__ = 'Kaiwen Wu'
 KEYWORDS_todo = {  # keyword : label
     'todo'              : 'TODO',
     'TODO'              : 'TODO',
+    'fixme'             : 'TODO',
+    'FIXME'             : 'TODO',
     'question'          : 'QUESTION',
     'problem'           : 'PROBLEM',
     'continue here'     : 'TODO',
