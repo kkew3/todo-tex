@@ -78,9 +78,9 @@ def make_parser():
     parser = argparse.ArgumentParser(
         description=(
             'list filename and line '
-            'numbers with "TODO", "todo", "continue here", "continue later", '
-            '"continue ...", "question", "problem" at the head of comments of '
-            'tex files'))
+            'numbers with "TODO", "todo", "fixme", "FIXME", "continue here", '
+            '"continue later", "continue ...", "question", "problem" at the '
+            'head of comments of tex files'))
     parser.add_argument(
         '-L',
         dest='print_linenumber',
