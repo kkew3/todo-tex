@@ -42,14 +42,14 @@ KEYWORDS_done = {  # keyword : label
 
 #################
 
-KEYPATTERN = (r'([^\\]|^)%(?P<pfx_space>[ \t]*)(?P<key>'
-              + '|'.join(list(KEYWORDS_done) + list(KEYWORDS_todo))
-              + r')[ \t]*:?[ \t]*(?P<msg>\S.*)?$')
-CONTPATTERN = r'^[ \t]*%(?P<pfx_space>[ \t]*)(?P<msg>\S.*)?$'
+KEYPATTERN = re.compile(r'([^\\]|^)%(?P<pfx_space>[ \t]*)(?P<key>'
+                        + '|'.join(list(KEYWORDS_done) + list(KEYWORDS_todo))
+                        + r')[ \t]*:?[ \t]*(?P<msg>\S.*)?$')
+CONTPATTERN = re.compile(r'^[ \t]*%(?P<pfx_space>[ \t]*)(?P<msg>\S.*)?$')
 # Reference: https://blog.csdn.net/cysear/article/details/80435756
 # Reference: https://github.com/hotoo/pangu.vim/blob/master/plugin/pangu.vim
-HANS = (r'[\u4e00-\u9fa5\u3040-\u30ff]')
-HANS_PUNC = (
+HANS = re.compile(r'[\u4e00-\u9fa5\u3040-\u30ff]')
+HANS_PUNC = re.compile(
     r'[\u3002\uff1f\uff01\uff0c\u3001\uff1b'
     r'\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u300a\u300b\u3008\u3009'
     r'\u3010\u3011\u300e\u300f\u300c\u300d\ufe43\ufe44\u3014\u3015\u2026'
@@ -62,10 +62,10 @@ COLOR_RST = '\33[0m'
 
 
 def test_keypattern():
-    matched = re.search(KEYPATTERN, 'blablabla % continue ...')
+    matched = KEYPATTERN.search('blablabla % continue ...')
     assert matched.group('key') == 'continue ...'
     assert not matched.group('msg')
-    matched = re.search(KEYPATTERN, 'blablabla % question solved: explanation')
+    matched = KEYPATTERN.search('blablabla % question solved: explanation')
     assert matched.group('key') == 'question solved'
     assert matched.group('msg') == 'explanation'
 
@@ -158,7 +158,7 @@ def scan_tex_file(lines_iter, allow_continuation):
     if not allow_continuation:
         for ln, line in enumerate(lines_iter, 1):
             line = line.rstrip('\n')
-            matched = re.search(KEYPATTERN, line)
+            matched = KEYPATTERN.search(line)
             if matched:
                 annotations.append(
                     TexAnnotation(ln, len(matched.group('pfx_space')),
@@ -173,18 +173,16 @@ def scan_tex_file(lines_iter, allow_continuation):
                 except IndexError:
                     continuing = False
                 else:
-                    matched = re.match(CONTPATTERN, line)
+                    matched = CONTPATTERN.match(line)
                     if (matched and len(matched.group('pfx_space')) >
                             prev_annot.pfxlen):
                         if not prev_annot.msg or not matched.group('msg'):
                             msgsep = ''
                         # handle Chinese and Chinese punctuation
-                        elif ((re.match(HANS, prev_annot.msg[-1])
-                               and re.match(HANS,
-                                            matched.group('msg')[0]))
-                              or (re.match(HANS_PUNC, prev_annot.msg[-1])
-                                  or re.match(HANS_PUNC,
-                                              matched.group('msg')[0]))):
+                        elif ((HANS.match(prev_annot.msg[-1])
+                               and HANS.match(matched.group('msg')[0])) or
+                              (HANS_PUNC.match(prev_annot.msg[-1])
+                               or HANS_PUNC.match(matched.group('msg')[0]))):
                             msgsep = ''
                         else:
                             msgsep = ' '
@@ -200,7 +198,7 @@ def scan_tex_file(lines_iter, allow_continuation):
                         annotations.append(prev_annot)
                         continuing = False
             if not continuing:
-                matched = re.search(KEYPATTERN, line)
+                matched = KEYPATTERN.search(line)
                 if matched:
                     annotations.append(
                         TexAnnotation(ln, len(matched.group('pfx_space')),
