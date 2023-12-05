@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools"]
+
+[project]
+name = "todotex"
+authors = [
+    {name = "Kaiwen Wu", email = "kps6326@hotmail.com"},
+]
+version = "3.0"
+requires-python = ">=3.7"
+readme = "README.md"
+license = {file = "LICENSE"}
+dependencies = ["tomli"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+windows = ["colorama>=0.4.6", "chardet"]
+
+[tool.setuptools]
+packages = ["todotex"]

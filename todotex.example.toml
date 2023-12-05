@@ -1,0 +1,17 @@
+todo = [
+    {key = "todo", label = "TODO"},
+    {key = "TODO", label = "TODO"},
+    {key = "fixme", label = "TODO"},
+    {key = "FIXME", label = "TODO"},
+    {key = "question", label = "QUESTION"},
+    {key = "problem", label = "PROBLEM"},
+    {key = "continue here", label = "TODO"},
+    {key = "continue later", label = "TODO"},
+    {key = 'continue ?\.{3,}', label = "TODO"},
+]
+
+done = [
+    {key = "question solved", label = "SOLVED"},
+    {key = "problem solved", label = "SOLVED"},
+    {key = "done", label = "DONE"},
+]

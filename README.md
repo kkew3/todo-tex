@@ -1,8 +1,8 @@
-# todo-tex.py -- Add TODO tag to LaTeX file
+# todotex -- Add TODO tag to LaTeX file
 
-This Python3 utility parses LaTeX source codes for TODO tags and print them 
-up on terminal. Supported TODO tags are `todo`, `TODO`, `fixme`, `FIXME`,
-`question`, `problem`, `continue here`, `continue later`, `continue ...`.
+This Python3 utility parses LaTeX source codes for TODO tags and print them up on terminal.
+Supported TODO tags are `todo`, `TODO`, `fixme`, `FIXME`, `question`, `problem`, etc.
+You may modify the example configuration `todotex.example.toml` to your like and place it at `~/.config/todotex/todotex.toml` (see `--help` for detail).
 
 ## Sample Usage
 
@@ -17,39 +17,61 @@ Superchiasmatic neucleus is the primary clock % continue later: forgot
 \end{document}
 ```
 
-With command `todo-tex.py -c` under directory of `sample.tex`, the output is
+With command `python3 -m todotex -c .` under directory of `sample.tex`, the output is
 
 ```
-./sample.tex
+sample.tex
 3:TODO:some text
 4:TODO:forgot what to write now
 ```
 
 (with color)
 
+## Installation
+
+Simply add `todotex` to your `PYTHONPATH`.
+
+For example, suppose that all dependencies has been installed to `~/miniconda3/envs/hello/bin/python3`, and that this repo has been cloned to `/path/to/todo-tex`.
+You may run the utility via:
+
+```bash
+PYTHONPATH=/path/to/todo-tex/todotex ~/miniconda3/envs/hello/bin/python3 -m todotex --help
+```
+
+Or you may put the following text to a shell script, and call the shell script with arguments:
+
+```bash
+PYTHONPATH=/path/to/todo-tex/todotex ~/miniconda3/envs/hello/bin/python3 -m todotex "$@"
+```
+
 ## Detailed Help
 
-See `todo-tex.py --help`.
+See `python3 -m todotex --help`.
 
-## How to add/remove supported TODO tags
+## The configuration file
 
-Go to the Python3 source code and modify the dictionay `KEYWORDS_todo` and/or 
-`KEYWORDS_done`. The keys of the former dictionary are the TODO tags in 
-LaTeX source to parse, and the values are what to be shown on terminal, i.e. 
-the content in the square bracket in the sample output. The keys of the 
-latter dictionary are the DONE tags in LaTeX source to parse, the values 
-the same as previously stated.
+Each `key` refers to the TODO/DONE tags in TeX source to parse, and each `label` refers to what to be shown in terminal.
+The `todo` list collects all TODO tags and labels.
+The `done` list collects all DONE tags and labels.
 
 Scenario to use DONE tags includes notes to previously posed `question` tag.
 Option `-D` can be used to suppress showing DONE tags.
 
-## Optional dependencies
+An example configuration is provided at `todotex.example.toml`.
 
-- `chardet`, used to safely open text files with unknown encodings.
-- `colorama`, used to color the output under Windows.
+## Dependencies
 
-## Dev dependencies
+- [`tomli`](https://github.com/hukkin/tomli): used to parse configuration file
 
-To run the tests in `todo-tex.py`, you'll need
+### Optional dependencies
 
-- `pytest`
+- [`chardet`](https://github.com/chardet/chardet) (relevant only under Windows): used to safely open text files with unknown encodings
+- [`colorama`](https://github.com/tartley/colorama), used to color the output under Windows
+
+### Dev dependencies
+
+To run the tests in `todotex`, you'll need [`pytest`](https://docs.pytest.org/en/7.4.x/):
+
+```bash
+pytest todotex/tests
+```
