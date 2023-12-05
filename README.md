@@ -35,13 +35,13 @@ For example, suppose that all dependencies has been installed to `~/miniconda3/e
 You may run the utility via:
 
 ```bash
-PYTHONPATH=/path/to/todo-tex/todotex ~/miniconda3/envs/hello/bin/python3 -m todotex --help
+PYTHONPATH=/path/to/todo-tex ~/miniconda3/envs/hello/bin/python3 -m todotex --help
 ```
 
 Or you may put the following text to a shell script, and call the shell script with arguments:
 
 ```bash
-PYTHONPATH=/path/to/todo-tex/todotex ~/miniconda3/envs/hello/bin/python3 -m todotex "$@"
+PYTHONPATH=/path/to/todo-tex ~/miniconda3/envs/hello/bin/python3 -m todotex "$@"
 ```
 
 ## Detailed Help
